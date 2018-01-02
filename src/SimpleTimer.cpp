@@ -18,6 +18,21 @@ SimpleTimer::~SimpleTimer()
 
 void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type type)
 {
+    stop();
+
+#if 0
+    std::chrono::steady_clock::time_point exp = std::chrono::steady_clock::now()
+                                                + std::chrono::milliseconds(interval);
+    m_thread = new std::thread([this, exp, interval, cb, type] () {
+        std::this_thread::sleep_for(exp - std::chrono::steady_clock::now());
+        cb();
+        if (type == AbstractTimer::Type::Circle) {
+            this->start(interval, cb, type);
+        }
+    });
+
+#else
+
     if (expired_ == false) {
         return;
     }
@@ -32,7 +47,7 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
             if (!try_to_expire_) {
                 cb();
 
-                if (type_ == AbstractTimer::Once) {
+                if (type_ == AbstractTimer::Type::Once) {
                     try_to_expire_ = true;
                 }
             }
@@ -44,10 +59,19 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
             expired_cond_.notify_one();
         }
     }).detach();
+#endif
 }
 
 void SimpleTimer::stop()
 {
+#if 0
+
+    if (m_thread != nullptr) {
+        delete m_thread;
+        m_thread = nullptr;
+    }
+
+#else
     if (expired_) {
         return;
     }
@@ -65,5 +89,6 @@ void SimpleTimer::stop()
             try_to_expire_ = false;
         }
     }
+#endif
 }
 

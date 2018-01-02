@@ -21,35 +21,16 @@ public:
     SimpleTimer(const SimpleTimer& t);
     ~SimpleTimer();
 
-    virtual void start(uint32_t interval, OnTimerCB cb, Type type = Circle);
+    virtual void start(uint32_t interval, OnTimerCB cb, Type type = Type::Circle);
     void stop();
-
-//    template<typename callable, class... arguments>
-//    void SyncWait(int after, callable&& f, arguments&&... args)
-//    {
-//        std::function<typename std::result_of<callable(arguments...)>::type()> task
-//                (std::bind(std::forward<callable>(f), std::forward<arguments>(args)...));
-//        std::this_thread::sleep_for(std::chrono::milliseconds(after));
-//        task();
-//    }
-
-//    template<typename callable, class... arguments>
-//    void AsyncWait(int after, callable&& f, arguments&&... args)
-//    {
-//        std::function<typename std::result_of<callable(arguments...)>::type()> task
-//                (std::bind(std::forward<callable>(f), std::forward<arguments>(args)...));
-//
-//        std::thread([after, task](){
-//            std::this_thread::sleep_for(std::chrono::milliseconds(after));
-//            task();
-//        }).detach();
-//    }
 
 private:
     std::atomic<bool> expired_;
     std::atomic<bool> try_to_expire_;
     std::mutex mutex_;
     std::condition_variable expired_cond_;
+
+    std::thread* m_thread = nullptr;
 };
 
 #endif // SIMPLETIMER_H_
