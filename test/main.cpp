@@ -26,7 +26,7 @@ std::string getCurTimeStr()
     char buf[32] = {0};
 #ifdef _WIN32
     SYSTEMTIME currentTime;
-    GetSystemTime(&currentTime);
+    GetLocalTime(&currentTime);
     sprintf(buf,"%04u-%02u-%02u %02u:%02u:%02u.%03u",
             currentTime.wYear,currentTime.wMonth,currentTime.wDay,
             currentTime.wHour,currentTime.wMinute,currentTime.wSecond,
@@ -61,7 +61,7 @@ int main()
     TWTimer t;
     LOG_INFO("start once: 1s, sleep 6s");
     t.start(1, std::bind(EchoFunc, "once"), SimpleTimer::Type::Once);
-    std::this_thread::sleep_for(std::chrono::seconds(6));
+    std::this_thread::sleep_for(std::chrono::seconds(3));
 
     LOG_INFO("start circle: 1s, sleep 7.5s");
     t.start(1, std::bind(EchoFunc, "circle"), SimpleTimer::Type::Circle);
@@ -70,5 +70,7 @@ int main()
     LOG_INFO("timer stoped");
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
+
+	getchar();
     return 0;
 }

@@ -21,7 +21,7 @@ private:
     int m_vecIndex = -1;
     std::list<TWTimer*>::iterator m_itr;
     uint32_t m_interval = 0;          /// 触发间隔s
-
+    uint64_t m_expires = 0;
     OnTimerCB m_cb = nullptr;
 };
 

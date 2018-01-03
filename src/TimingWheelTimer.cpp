@@ -53,6 +53,7 @@ public:
     void removeTimer(TWTimer* timer);
     void tick();
     bool moveUp(int n);
+    uint64_t getExpires(uint32_t interval);
 
 private:
     void loopThread();
@@ -103,9 +104,7 @@ TimingWheel::~TimingWheel()
 
 void TimingWheel::addTimer(TWTimer *timer)
 {
-    steady_clock::time_point now = steady_clock::now();
-    seconds sec = duration_cast<seconds>(now - m_startTimePoint) + seconds(timer->m_interval);
-    uint64_t idx = sec.count() - m_checkTime;
+    uint64_t idx = timer->m_expires - m_checkTime;
 
     // 得到所在时间轮的下标
     // 0:1~256; 1:256+1~256^2; x:256^x+1~256^(x+1);
@@ -145,7 +144,7 @@ void TimingWheel::tick()
 
     while (m_checkTime*1000 <= now)
     {
-        for (int i=0; i<TW_NUM; i++)
+        for (int i=1; i<TW_NUM; i++)
         {
             if (!moveUp(i))
             {
@@ -174,11 +173,15 @@ void TimingWheel::tick()
 
 bool TimingWheel::moveUp(int n) /// wheel index
 {
-    int index = (m_checkTime >> (n*TW_SBIT)) & (TW_SIZE-1);
-    if ( 0 != index )
+    // 只有在时间在当前层，从一个槽走到下一个槽时才触发，
+    // 并将下一个槽内的所有定时器上移
+    // 所以只有在 256^n 的整数倍时才会触发
+    if (0 != (m_checkTime & ((1<<(n*TW_SBIT))-1)))
     {
         return false;
     }
+
+    int index = (m_checkTime >> (n*TW_SBIT)) & (TW_SIZE-1);
 
     /// FIXME: 在获取到一个槽的定时器时，其他线程调用了删除定时器，会导致删除错误。
     TimerList& tlist = m_timers[n*TW_SIZE + index];
@@ -190,6 +193,12 @@ bool TimingWheel::moveUp(int n) /// wheel index
     }
 
     return true;
+}
+
+uint64_t TimingWheel::getExpires(uint32_t interval)
+{
+    seconds sec = duration_cast<seconds>(steady_clock::now() - m_startTimePoint) + seconds(interval);
+    return sec.count();
 }
 
 void TimingWheel::loopThread()
@@ -234,6 +243,7 @@ void TWTimer::start(uint32_t interval, OnTimerCB cb, Type type)
     m_type = type;
     m_cb   = cb;
     m_interval = interval;
+    m_expires =  TimingWheel::getInstance().getExpires(m_interval);
 
     TimingWheel::getInstance().addTimer(this);
 }
@@ -251,6 +261,7 @@ void TWTimer::onTimer()
 {
     if (m_type == Type::Circle)
     {
+        m_expires =  TimingWheel::getInstance().getExpires(m_interval);
         TimingWheel::getInstance().addTimer(this);
     }
     else
