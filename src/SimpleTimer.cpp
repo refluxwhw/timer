@@ -36,7 +36,7 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
     if (expired_ == false) {
         return;
     }
-    type_ = type;
+    m_type = type;
     expired_ = false;
     try_to_expire_ = false;
 
@@ -47,7 +47,7 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
             if (!try_to_expire_) {
                 cb();
 
-                if (type_ == AbstractTimer::Type::Once) {
+                if (m_type == AbstractTimer::Type::Once) {
                     try_to_expire_ = true;
                 }
             }

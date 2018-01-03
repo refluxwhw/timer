@@ -15,10 +15,10 @@ public:
     virtual void start(uint32_t interval, OnTimerCB cb, Type type = Type::Circle) = 0;
     virtual void stop() = 0;
 
-    Type type() const { return type_; }
+    Type type() const { return m_type; }
 
 protected:
-    Type type_ = Type::Circle;
+    Type m_type = Type::Circle;
 };
 
 #endif // ABSTRACTTIMER_H
