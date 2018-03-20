@@ -28,17 +28,6 @@ using namespace std::chrono;
 /// | max time | s  | s^2   | ... | s^n          |
 /// +----------+----+-------+-----+--------------+
 
-/// 如果时间轮大小不一致
-/// +----------+----+-------+-----+--------------+
-/// | level    | 1  | 2     | ... | n            |
-/// +----------+----+-------+-----+--------------+
-/// | slot     | s1 | s2    | ... | sn           |
-/// +----------+----+-------+-----+--------------+
-/// | max time | s1 | s1*s2 | ... | s1*s2*...*sn |
-/// +----------+----+-------+-----+--------------+
-
-/// 无论大小是否一致，都应该保证最大时间应该大于等于 UINT_MAX
-
 #define TW_SBIT 8
 #define TW_NBIT 2
 #define TW_SIZE (1<<TW_SBIT) // 时间轮大小为256
@@ -63,7 +52,7 @@ private:
     std::vector<TimerList> m_timers;
     steady_clock::time_point m_startTimePoint;
 
-    std::atomic_bool m_stopFlag = false;
+    std::atomic_bool m_stopFlag;
     std::thread* m_loopThread = nullptr;
 };
 
@@ -111,15 +100,25 @@ void TimingWheel::addTimer(TWTimer *timer)
     // 0:1~256; 1:256+1~256^2; x:256^x+1~256^(x+1);
     int offset = 0; // 得到所在时间轮
     uint64_t max = 1;
-    while ( !(idx < (max<<=TW_SBIT)) )
+//    while ( !(idx < (max<<=TW_SBIT)) )
+//    {
+//        offset++;
+//    }
+
+    while ( true )
     {
+        max *= 256;
+        if (idx < max)
+        {
+            break;
+        }
         offset++;
     }
 
     // 当前层时间轮，每个槽的大小为 256^n，
     // 下标应等于 当前检查时间在该层时间轮中的位置 + 值/槽大小
     int curIndex = (int)(m_checkTime >> (offset*TW_SBIT)) & (TW_SIZE-1);
-    int arrIndex = (int)(idx >> (offset*TW_SBIT) & (TW_SIZE-1));
+    int arrIndex = (int)(idx >> (offset*TW_SBIT)) & (TW_SIZE-1);
     arrIndex += curIndex;
     arrIndex &= (TW_SIZE-1);
     int index = offset * TW_SIZE + arrIndex; // 在整个数组中的位置
@@ -194,6 +193,7 @@ bool TimingWheel::moveUp(int n) /// wheel index
 
 void TimingWheel::loopThread()
 {
+    m_stopFlag = false;
     while (!m_stopFlag)
     {
         milliseconds ms = duration_cast<milliseconds>(steady_clock::now() - m_startTimePoint);
@@ -221,15 +221,13 @@ TWTimer::~TWTimer()
 
 }
 
-/**
- * @brief TWTimer::start
- * @param interval: ms
- * @param cb: function
- * @param type
- */
 void TWTimer::start(uint32_t interval, OnTimerCB cb, Type type)
 {
     stop();
+
+    //if (0 == interval) {
+    //    throw "timer interval can not be 0";
+    //}
 
     m_type = type;
     m_cb   = cb;

@@ -20,18 +20,9 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
 {
     stop();
 
-#if 0
-    std::chrono::steady_clock::time_point exp = std::chrono::steady_clock::now()
-                                                + std::chrono::milliseconds(interval);
-    m_thread = new std::thread([this, exp, interval, cb, type] () {
-        std::this_thread::sleep_for(exp - std::chrono::steady_clock::now());
-        cb();
-        if (type == AbstractTimer::Type::Circle) {
-            this->start(interval, cb, type);
-        }
-    });
-
-#else
+    // if (0 == interval) {
+    //     throw "timer interval can not be 0";
+    // }
 
     if (expired_ == false) {
         return;
@@ -41,12 +32,12 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
     try_to_expire_ = false;
 
     std::thread([this, interval, cb] () {
+        std::mutex stop_mutex;
         while (!try_to_expire_) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-
-            if (!try_to_expire_) {
+            std::unique_lock<std::mutex> locker(stop_mutex);
+            if (std::cv_status::timeout == stop_cond_.wait_for(
+                        locker, std::chrono::seconds(interval))) {
                 cb();
-
                 if (m_type == AbstractTimer::Type::Once) {
                     try_to_expire_ = true;
                 }
@@ -59,19 +50,10 @@ void SimpleTimer::start(uint32_t interval, OnTimerCB cb, AbstractTimer::Type typ
             expired_cond_.notify_one();
         }
     }).detach();
-#endif
 }
 
 void SimpleTimer::stop()
 {
-#if 0
-
-    if (m_thread != nullptr) {
-        delete m_thread;
-        m_thread = nullptr;
-    }
-
-#else
     if (expired_) {
         return;
     }
@@ -83,12 +65,13 @@ void SimpleTimer::stop()
     try_to_expire_ = true;
 
     {
+        stop_cond_.notify_one();
+
         std::unique_lock<std::mutex> locker(mutex_);
         expired_cond_.wait(locker, [this]{ return expired_ == true; });
         if (expired_ == true) {
             try_to_expire_ = false;
         }
     }
-#endif
 }
 

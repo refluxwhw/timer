@@ -29,6 +29,7 @@ private:
     std::atomic<bool> try_to_expire_;
     std::mutex mutex_;
     std::condition_variable expired_cond_;
+    std::condition_variable stop_cond_;
 
     std::thread* m_thread = nullptr;
 };
